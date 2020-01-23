@@ -29,10 +29,9 @@ project (tensorrt-inference-server)
 
 include(CMakeDependentOption)
 include(ExternalProject)
-include(GNUInstallDirs)
 
 # Backends
-option(TRTIS_ENABLE_TENSORRT "Include TensorRT backend in server" OFF)
+option(TRTIS_ENABLE_TENSORRT "Include TensorRT backend in server" ON)
 option(TRTIS_ENABLE_TENSORFLOW "Include TensorFlow backend in server" OFF)
 option(TRTIS_ENABLE_CAFFE2 "Include Caffe2 backend in server" OFF)
 option(TRTIS_ENABLE_ONNXRUNTIME "Include ONNXRuntime backend in server" OFF)
@@ -44,7 +43,6 @@ option(TRTIS_ENABLE_CUSTOM "Include Custom backend in server" OFF)
 # Endpoints
 option(TRTIS_ENABLE_HTTP "Include HTTP API in server" ON)
 option(TRTIS_ENABLE_GRPC "Include GRPC API in server" ON)
-option(TRTIS_ENABLE_HTTP_V2 "Enable version 2 of the HTTP API in server" OFF)
 option(TRTIS_ENABLE_METRICS "Include metrics support in server" ON)
 
 # Cloud storage
@@ -56,25 +54,14 @@ set(TRTIS_ONNXRUNTIME_INCLUDE_PATHS "" CACHE PATH "Paths to ONNXRuntime includes
 set(TRTIS_PYTORCH_INCLUDE_PATHS "" CACHE PATH "Paths to PyTorch includes")
 set(TRTIS_EXTRA_LIB_PATHS "" CACHE PATH "Extra library paths for TRTIS build")
 
-# Client
-set(TRTIS_CLIENT_CMAKE_DIR "" CACHE PATH "Path to TRTIS client library cmake configuration")
-
 option(TRTIS_ENABLE_TRACING "Include tracing support in server" OFF)
 option(TRTIS_ENABLE_ASAN "Build with address sanitizer" OFF)
-option(TRTIS_ENABLE_GPU "Enable GPU support in server/client" ON)
+option(TRTIS_ENABLE_GPU "Enable GPU support in server" ON)
 set(TRTIS_MIN_COMPUTE_CAPABILITY "6.0" CACHE STRING
     "The minimum CUDA compute capability supported by TRTIS" )
 
 if(TRTIS_ENABLE_TENSORRT AND NOT TRTIS_ENABLE_GPU)
   message(FATAL_ERROR "TRTIS_ENABLE_TENSORRT=ON requires TRTIS_ENABLE_GPU=ON")
-endif()
-
-if(TRTIS_ENABLE_HTTP_V2 AND NOT TRTIS_ENABLE_HTTP)
-  message(FATAL_ERROR "TRTIS_ENABLE_HTTP_V2=ON requires TRTIS_ENABLE_HTTP=ON")
-endif()
-
-if (TRTIS_ENABLE_HTTP_V2 AND TRTIS_ENABLE_METRICS)
-  message(FATAL_ERROR "TRTIS_ENABLE_HTTP_V2=ON requires TRTIS_ENABLE_METRICS OFF")
 endif()
 
 if(TRTIS_ENABLE_ONNXRUNTIME_OPENVINO AND NOT TRTIS_ENABLE_ONNXRUNTIME)
@@ -128,7 +115,7 @@ ExternalProject_Add(protobuf
 if (WIN32)
   set(_FINDPACKAGE_PROTOBUF_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/protobuf/cmake")
 else()
-  set(_FINDPACKAGE_PROTOBUF_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/protobuf/${CMAKE_INSTALL_LIBDIR}/cmake/protobuf")
+  set(_FINDPACKAGE_PROTOBUF_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/protobuf/lib/cmake/protobuf")
 endif()
 
 #
@@ -182,7 +169,6 @@ ExternalProject_Add(curl
     -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
     -DBUILD_CURL_EXE:BOOL=OFF
     -DBUILD_SHARED_LIBS:BOOL=OFF
-    -DCURL_STATICLIB:BOOL=ON
     -DHTTP_ONLY:BOOL=ON
     -DCMAKE_BUILD_TYPE:BOOL=${CMAKE_BUILD_TYPE}
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/curl/install
@@ -217,7 +203,6 @@ ExternalProject_Add(libevhtp
   COMMAND patch -i ${CMAKE_SOURCE_DIR}/libevhtp/config.h.in.patch ${CMAKE_CURRENT_BINARY_DIR}/libevhtp/src/libevhtp/include/evhtp/config.h.in
   SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/libevhtp/src/libevhtp"
   CMAKE_CACHE_ARGS
-    -DEVHTP_DISABLE_REGEX:BOOL=ON
     -DEVHTP_DISABLE_SSL:BOOL=ON
     -DEVHTP_TRTIS_ENABLE_HTTP_CONTIGUOUS:BOOL=ON
     -DEVHTP_TRTIS_ENABLE_TRACING:BOOL=${TRTIS_ENABLE_TRACING}
@@ -362,34 +347,20 @@ else()
   set(TRTIS_CLIENTS_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
 endif()
 
-# If TRTIS_CLIENT_CMAKE_DIR is set then use it to find TRTIS cmake
-# config
-set(_CMAKE_TRTIS_DIR "")
-if (TRTIS_CLIENT_CMAKE_DIR)
-  set(_CMAKE_TRTIS_DIR "-DTRTIS_DIR:PATH=${TRTIS_CLIENT_CMAKE_DIR}")
-endif()
-
-# version
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../VERSION" TRTIS_VERSION)
-
 ExternalProject_Add(trtis-clients
   PREFIX trtis-clients
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/trtis-clients"
   BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/trtis-clients"
   BUILD_ALWAYS 1
   CMAKE_CACHE_ARGS
-    -DCURL_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/curl/install/${CMAKE_INSTALL_LIBDIR}/cmake/CURL
+    -DCURL_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/curl/install/lib/cmake/CURL
     -DProtobuf_DIR:PATH=${_FINDPACKAGE_PROTOBUF_CONFIG_DIR}
     -Dc-ares_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/c-ares/lib/cmake/c-ares
     ${_CMAKE_ARGS_OPENSSL_ROOT_DIR}
     -DgRPC_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/grpc/lib/cmake/grpc
-    ${_CMAKE_TRTIS_DIR}
     -DTRTIS_ENABLE_METRICS:BOOL=OFF
-    -DTRTIS_ENABLE_HTTP_V2:BOOL=${TRTIS_ENABLE_HTTP_V2}
     -DCMAKE_BUILD_TYPE:BOOL=${CMAKE_BUILD_TYPE}
-    -DTRTIS_ENABLE_GPU:BOOL=${TRTIS_ENABLE_GPU}
     -DCMAKE_INSTALL_PREFIX:PATH=${TRTIS_CLIENTS_INSTALL_PREFIX}
-    -DTRTIS_VERSION:STRING=${TRTIS_VERSION}
   DEPENDS curl protobuf grpc
 )
 
@@ -449,7 +420,6 @@ ExternalProject_Add(trtis
     -DTRTIS_ENABLE_GPU:BOOL=${TRTIS_ENABLE_GPU}
     -DTRTIS_ENABLE_HTTP:BOOL=${TRTIS_ENABLE_HTTP}
     -DTRTIS_ENABLE_GRPC:BOOL=${TRTIS_ENABLE_GRPC}
-    -DTRTIS_ENABLE_HTTP_V2:BOOL=${TRTIS_ENABLE_HTTP_V2}
     -DTRTIS_MIN_COMPUTE_CAPABILITY:STRING=${TRTIS_MIN_COMPUTE_CAPABILITY}
     -DTRTIS_ENABLE_METRICS:BOOL=${TRTIS_ENABLE_METRICS}
     -DTRTIS_ENABLE_GCS:BOOL=${TRTIS_ENABLE_GCS}
@@ -467,3 +437,8 @@ ExternalProject_Add(trtis
 )
 
 unset(CMAKE_INSTALL_PREFIX CACHE)
+
+include_directories("/opt/luciapp/data/build-ess/TensorRT-6.0.1.5/include")
+link_directories("/opt/luciapp/data/build-ess/TensorRT-6.0.1.5/include")
+include_directories("/opt/luciapp/data/build-ess/TensorRT-6.0.1.5/lib")
+link_directories("/opt/luciapp/data/build-ess/TensorRT-6.0.1.5/lib")

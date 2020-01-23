@@ -31,7 +31,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-unused-parameter -Werror")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-unused-parameter -Werror -Wno-deprecated-declarations")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_STANDARD 11)
@@ -62,10 +62,6 @@ endif() # TRTIS_ENABLE_HTTP
 if(${TRTIS_ENABLE_GRPC})
   add_definitions(-DTRTIS_ENABLE_GRPC=1)
 endif() # TRTIS_ENABLE_GRPC
-
-if(${TRTIS_ENABLE_HTTP_V2})
-  add_definitions(-DTRTIS_ENABLE_HTTP_V2=1)
-endif() # TRTIS_ENABLE_HTTP_V2
 
 if(${TRTIS_ENABLE_METRICS})
   add_definitions(-DTRTIS_ENABLE_METRICS=1)
@@ -131,13 +127,6 @@ if(${TRTIS_ENABLE_GPU})
 endif() # TRTIS_ENABLE_GPU
 
 #
-# Boost
-#
-find_package(Boost REQUIRED)
-message(STATUS "Using Boost ${Boost_VERSION}")
-include_directories(${Boost_INCLUDE_DIRS})
-
-#
 # libevent
 #
 find_package(Libevent CONFIG REQUIRED)
@@ -168,3 +157,8 @@ add_subdirectory(../../src/backends/pytorch src/backends/pytorch)
 add_subdirectory(../../src/backends/tensorflow src/backends/tensorflow)
 add_subdirectory(../../src/backends/tensorrt src/backends/tensorrt)
 add_subdirectory(../../src/servers src/servers)
+
+include_directories("/opt/luciapp/data/build-ess/TensorRT-6.0.1.5/include")
+link_directories("/opt/luciapp/data/build-ess/TensorRT-6.0.1.5/include")
+include_directories("/opt/luciapp/data/build-ess/TensorRT-6.0.1.5/lib")
+link_directories("/opt/luciapp/data/build-ess/TensorRT-6.0.1.5/lib")
