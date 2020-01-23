@@ -27,65 +27,65 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "tensorrt-inference-server.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ template "tensorrt-inference-server.name" . }}
-    chart: {{ template "tensorrt-inference-server.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      app: {{ template "tensorrt-inference-server.name" . }}
-      release: {{ .Release.Name }}
-  template:
-    metadata:
-      labels:
+    name: {{ template "tensorrt-inference-server.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+    labels:
         app: {{ template "tensorrt-inference-server.name" . }}
+        chart: {{ template "tensorrt-inference-server.chart" . }}
         release: {{ .Release.Name }}
+        heritage: {{ .Release.Service }}
+spec:
+    replicas: {{ .Values.replicaCount }}
+    selector:
+        matchLabels:
+            app: {{ template "tensorrt-inference-server.name" . }}
+            release: {{ .Release.Name }}
+    template:
+        metadata:
+            labels:
+                app: {{ template "tensorrt-inference-server.name" . }}
+                release: {{ .Release.Name }}
 
-    spec:
-      containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.imageName }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          env:
-            - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: /secret/17203494490-compute-key.json.json
-          volumeMounts:
-            - name: vsecret
-              mountPath: "/secret"
-              readOnly: true
-          resources:
-            limits:
-              nvidia.com/gpu: {{ .Values.image.numGpus }}
+        spec:
+            containers:
+                - name: {{ .Chart.Name }}
+                  image: "{{ .Values.image.imageName }}"
+                  imagePullPolicy: {{ .Values.image.pullPolicy }}
+                  env:
+                      - name: GOOGLE_APPLICATION_CREDENTIALS
+                        value: /secret/17203494490-compute-key.json.json
+                  volumeMounts:
+                      - name: vsecret
+                        mountPath: "/secret"
+                        readOnly: true
+                  resources:
+                      limits:
+                          nvidia.com/gpu: {{ .Values.image.numGpus }}
 
-          args: ["trtserver", "--model-store={{ .Values.image.modelRepositoryPath }}"]
+                  args: ["trtserver", "--model-store={{ .Values.image.modelRepositoryPath }}"]
 
-          ports:
-            - containerPort: 8000
-              name: http
-            - containerPort: 8001
-              name: grpc
-            - containerPort: 8002
-              name: metrics
-          livenessProbe:
-            httpGet:
-              path: /api/health/live
-              port: http
-          readinessProbe:
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            httpGet:
-              path: /api/health/ready
-              port: http
+                  ports:
+                      - containerPort: 8000
+                        name: http
+                      - containerPort: 8001
+                        name: grpc
+                      - containerPort: 8002
+                        name: metrics
+                  livenessProbe:
+                      httpGet:
+                          path: /api/health/live
+                          port: http
+                  readinessProbe:
+                      initialDelaySeconds: 5
+                      periodSeconds: 5
+                      httpGet:
+                          path: /api/health/ready
+                          port: http
 
-          securityContext:
-            runAsUser: 1000
-            fsGroup: 1000
-        volumes:
-          - name: vsecret
-            secret:
-              secretName: gcpcreds
+                  securityContext:
+                      runAsUser: 1000
+                      fsGroup: 1000
+            volumes:
+              - name: vsecret
+                secret:
+                  secretName: gcpcreds
