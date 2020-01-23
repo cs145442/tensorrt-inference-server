@@ -51,7 +51,13 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.imageName }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /secret/17203494490-compute-key.json.json
+          volumeMounts:
+            - name: vsecret
+              mountPath: "/secret"
+              readOnly: true
           resources:
             limits:
               nvidia.com/gpu: {{ .Values.image.numGpus }}
@@ -79,3 +85,7 @@ spec:
           securityContext:
             runAsUser: 1000
             fsGroup: 1000
+        volumes:
+          - name: vsecret
+            secret:
+              secretName: gcpcreds
